@@ -30,6 +30,7 @@ pub struct SimpleJITBuilder {
     isa: Box<dyn TargetIsa>,
     symbols: HashMap<String, *const u8>,
     libcall_names: Box<dyn Fn(ir::LibCall) -> String>,
+    cusotm_lookup: CustomLookup,
 }
 
 impl SimpleJITBuilder {
@@ -70,7 +71,14 @@ impl SimpleJITBuilder {
             isa,
             symbols,
             libcall_names,
+            cusotm_lookup: None,
         }
+    }
+
+    /// Define a custom symbol lookup 
+    pub fn custom_lookup(mut self, custom_lookup: CustomLookup) -> Self {
+        self.cusotm_lookup = custom_lookup;
+        self
     }
 
     /// Define a symbol in the internal symbol table.
@@ -110,6 +118,8 @@ impl SimpleJITBuilder {
     }
 }
 
+pub type CustomLookup = Option<Box<dyn Fn(&str) -> String>>;
+
 /// A `SimpleJITBackend` implements `Backend` and emits code and data into memory where it can be
 /// directly called and accessed.
 ///
@@ -121,6 +131,7 @@ pub struct SimpleJITBackend {
     code_memory: Memory,
     readonly_memory: Memory,
     writable_memory: Memory,
+    custom_lookup: CustomLookup,
 }
 
 /// A record of a relocation to perform.
@@ -152,9 +163,15 @@ pub struct SimpleJITCompiledData {
 
 impl SimpleJITBackend {
     fn lookup_symbol(&self, name: &str) -> *const u8 {
-        match self.symbols.get(name) {
-            Some(&ptr) => ptr,
-            None => lookup_with_dlsym(name),
+        if let Some(custom) = &self.custom_lookup {
+            let custom_lookup = &*custom;
+            let sym = custom_lookup(name);
+            sym.as_ptr() as *const u8
+        } else {
+            match self.symbols.get(name) {
+                Some(&ptr) => ptr,
+                None => lookup_with_dlsym(name),
+            }
         }
     }
 
@@ -216,6 +233,7 @@ impl<'simple_jit_backend> Backend for SimpleJITBackend {
             code_memory: Memory::new(),
             readonly_memory: Memory::new(),
             writable_memory: Memory::new(),
+            custom_lookup: None,
         }
     }
 
