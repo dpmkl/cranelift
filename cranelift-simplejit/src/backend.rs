@@ -30,7 +30,7 @@ pub struct SimpleJITBuilder {
     isa: Box<dyn TargetIsa>,
     symbols: HashMap<String, *const u8>,
     libcall_names: Box<dyn Fn(ir::LibCall) -> String>,
-    custom_lookup: Option<Box<dyn Fn(&str) -> String>>,
+    custom_lookup: Option<Box<dyn Fn(&str) -> *const u8>>,
 }
 
 impl SimpleJITBuilder {
@@ -76,7 +76,7 @@ impl SimpleJITBuilder {
     }
 
     /// Define a custom symbol lookup 
-    pub fn custom_lookup(mut self, custom_lookup: Option<Box<dyn Fn(&str) -> String>>) -> Self {
+    pub fn custom_lookup(mut self, custom_lookup: Option<Box<dyn Fn(&str) -> *const u8>>) -> Self {
         self.custom_lookup = custom_lookup;
         self
     }
@@ -129,7 +129,7 @@ pub struct SimpleJITBackend {
     code_memory: Memory,
     readonly_memory: Memory,
     writable_memory: Memory,
-    custom_lookup: Option<Box<dyn Fn(&str) -> String>>,
+    custom_lookup: Option<Box<dyn Fn(&str) -> *const u8>>,
 }
 
 /// A record of a relocation to perform.
@@ -163,8 +163,7 @@ impl SimpleJITBackend {
     fn lookup_symbol(&self, name: &str) -> *const u8 {
         if let Some(custom) = &self.custom_lookup {
             let custom_lookup = &*custom;
-            let sym = custom_lookup(name);
-            sym.as_ptr() as *const u8
+            custom_lookup(name)
         } else {
             match self.symbols.get(name) {
                 Some(&ptr) => ptr,
