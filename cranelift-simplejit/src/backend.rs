@@ -30,7 +30,7 @@ pub struct SimpleJITBuilder {
     isa: Box<dyn TargetIsa>,
     symbols: HashMap<String, *const u8>,
     libcall_names: Box<dyn Fn(ir::LibCall) -> String>,
-    cusotm_lookup: CustomLookup,
+    custom_lookup: CustomLookup,
 }
 
 impl SimpleJITBuilder {
@@ -71,13 +71,13 @@ impl SimpleJITBuilder {
             isa,
             symbols,
             libcall_names,
-            cusotm_lookup: None,
+            custom_lookup: None,
         }
     }
 
     /// Define a custom symbol lookup 
     pub fn custom_lookup(mut self, custom_lookup: CustomLookup) -> Self {
-        self.cusotm_lookup = custom_lookup;
+        self.custom_lookup = custom_lookup;
         self
     }
 
@@ -233,7 +233,7 @@ impl<'simple_jit_backend> Backend for SimpleJITBackend {
             code_memory: Memory::new(),
             readonly_memory: Memory::new(),
             writable_memory: Memory::new(),
-            custom_lookup: None,
+            custom_lookup: builder.custom_lookup,
         }
     }
 
