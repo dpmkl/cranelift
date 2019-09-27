@@ -30,7 +30,7 @@ pub struct SimpleJITBuilder {
     isa: Box<dyn TargetIsa>,
     symbols: HashMap<String, *const u8>,
     libcall_names: Box<dyn Fn(ir::LibCall) -> String>,
-    custom_lookup: CustomLookup,
+    custom_lookup: Option<Box<dyn Fn(&str) -> String>>,
 }
 
 impl SimpleJITBuilder {
@@ -76,7 +76,7 @@ impl SimpleJITBuilder {
     }
 
     /// Define a custom symbol lookup 
-    pub fn custom_lookup(mut self, custom_lookup: CustomLookup) -> Self {
+    pub fn custom_lookup(mut self, custom_lookup: Option<Box<dyn Fn(&str) -> String>>) -> Self {
         self.custom_lookup = custom_lookup;
         self
     }
@@ -118,8 +118,6 @@ impl SimpleJITBuilder {
     }
 }
 
-pub type CustomLookup = Option<Box<dyn Fn(&str) -> String>>;
-
 /// A `SimpleJITBackend` implements `Backend` and emits code and data into memory where it can be
 /// directly called and accessed.
 ///
@@ -131,7 +129,7 @@ pub struct SimpleJITBackend {
     code_memory: Memory,
     readonly_memory: Memory,
     writable_memory: Memory,
-    custom_lookup: CustomLookup,
+    custom_lookup: Option<Box<dyn Fn(&str) -> String>>,
 }
 
 /// A record of a relocation to perform.
